@@ -255,6 +255,23 @@ tr:hover td{background:#f8faff;}
 .cng-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(124,58,237,.3);}
 .cng-preview{border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px;display:none;background:#fafafa;}
 .cng-dl{background:var(--green);color:#fff;border:none;padding:7px 18px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;display:block;margin:10px auto 0;}
+
+/* Renewal summary table */
+.ren-sum-wrap{margin-bottom:14px;}
+.ren-sum-title{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px;padding:6px 10px;background:var(--accent-lt);border-radius:7px;border-left:4px solid var(--accent);}
+.ren-sum-tbl{width:100%;border-collapse:collapse;font-size:11px;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);}
+.ren-sum-tbl thead tr{background:#f8faff;}
+.ren-sum-tbl th{padding:7px 10px;font-size:10px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);text-transform:uppercase;white-space:nowrap;text-align:center;}
+.ren-sum-tbl th:first-child{text-align:left;}
+.ren-sum-tbl td{padding:6px 10px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle;}
+.ren-sum-tbl td:first-child{text-align:left;font-weight:600;}
+.ren-sum-tbl tr:last-child td{border-bottom:none;}
+.ren-sum-tbl tr:hover td{background:#f9fafb;}
+.ren-sum-tbl .sum-total{background:#f8faff;font-weight:700;}
+.ren-sum-bar{display:flex;align-items:center;gap:5px;}
+.ren-sum-bar-bg{flex:1;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;}
+.ren-sum-bar-fill{height:100%;border-radius:4px;transition:width .3s;}
+.ren-sum-pct{font-size:10px;font-weight:700;min-width:34px;text-align:right;}
 </style>
 </head>
 <body>
@@ -266,7 +283,7 @@ tr:hover td{background:#f8faff;}
     </div>
     <div class="hdr-right">
       <div class="hdr-badge"><b>May 2026</b>MS-CIT: Aug'26 EE &nbsp;|&nbsp; KLiC: KLiC May'26</div>
-      <div class="hdr-updated">Data updated on: 26 May 2026, 12:50 PM</div>
+      <div class="hdr-updated">Data updated on: 26 May 2026, 12:53 PM</div>
     </div>
   </div>
   <div class="nav-bar"><div class="nav-inner">
@@ -301,6 +318,11 @@ tr:hover td{background:#f8faff;}
         <option value="10">Top 10</option>
         <option value="15">Top 15</option>
         <option value="20">Top 20</option>
+      </select>
+      <select class="fsel" id="pfPeriodSel" onchange="pfPeriod=this.value;updatePFTitle();renderPF()" style="min-width:140px;">
+        <option value="current">Current Batch</option>
+        <option value="summer">Summer Season</option>
+        <option value="yoy">Year till May</option>
       </select>
       <div class="ctrl-row" id="pfT" style="margin:0">
         <button class="tog on" onclick="setTog('mscit',this,'pfT');renderPF()">MS-CIT</button>
@@ -452,6 +474,7 @@ tr:hover td{background:#f8faff;}
     <button class="print-btn" onclick="exportRenExcel()" style="background:var(--green);border-color:var(--green)">&#x1F4E5; Export to Excel</button>
   </div>
   <div class="renew-stats" id="renewStats"></div>
+  <div id="renewSummary"></div>
   <div class="alc-table-wrap">
     <div class="alc-table-hdr">
       <span>Renewal Criteria Status <span style="font-size:10px;font-weight:400;color:var(--text2)">(Urban: 65 MS-CIT OR 50 MS-CIT + KLiC equiv &bull; Rural: 35 MS-CIT OR 30 MS-CIT + KLiC equiv)</span></span>
@@ -463,8 +486,8 @@ tr:hover td{background:#f8faff;}
             <th onclick="renSortBy('alc_code')" style="cursor:pointer" title="Sort by ALC Code">ALC Code</th>
             <th onclick="renSortBy('alc_name')" style="cursor:pointer" title="Sort by ALC Name">ALC Name</th>
             <th onclick="renSortBy('area')" style="cursor:pointer" title="Sort by Area">Area</th>
-            <th onclick="renSortBy('mscit')" style="cursor:pointer;text-align:right" title="Sort by CY MS-CIT">CY MS-CIT<br>(Jan-Apr)</th>
-            <th onclick="renSortBy('klic')" style="cursor:pointer;text-align:right" title="Sort by CY KLiC">CY KLiC<br>(Jan-Apr)</th>
+            <th onclick="renSortBy('mscit')" style="cursor:pointer;text-align:right" title="Sort by CY MS-CIT">CY MS-CIT<br>(Jan-May)</th>
+            <th onclick="renSortBy('klic')" style="cursor:pointer;text-align:right" title="Sort by CY KLiC">CY KLiC<br>(Jan-May)</th>
             <th onclick="renSortBy('total')" style="cursor:pointer;text-align:right" title="Sort by Total">Total</th>
             <th onclick="renSortBy('met')" style="cursor:pointer;text-align:center" title="Sort by Renewal Criteria">Renewal Criteria</th>
           </tr>
@@ -602,7 +625,7 @@ const DCUS=[...new Set(RAW.map(c=>c.DCU))].sort();
 const SBUS=[...new Set(RAW.map(c=>c.SBU).filter(Boolean))].sort();
 const DC={'Mumbai City':'#2563eb','Mumbai Eastern Suburbs':'#16a34a','Mumbai Harbour Suburbs':'#d97706','Mumbai Western Suburbs':'#9333ea','Palghar':'#dc2626','Thane':'#0891b2'};
 
-let aCourse='mscit', pfC='mscit', sbuC='mscit';
+let aCourse='mscit', pfC='mscit', pfPeriod='current', sbuC='mscit';
 let alcSortCol='cy_yoy', alcSortDir=-1;
 let pndSortCol='pd', pndSortDir=-1;
 let renSortCol='met_total', renSortDir=-1;
@@ -637,8 +660,8 @@ function showPanel(id,el){
 function renderANA(){
   document.getElementById('anaContent').innerHTML='<div class="ana-grid">'+
     anaS('Current Batch (May month)',aCourse,'current')+
-    anaS('Summer Batches (Mar-Apr-May months)',aCourse,'summer')+
-    anaS('Y-o-Y (Jan to May)',aCourse,'yoy')+'</div>';
+    anaS('Y-o-Y (Jan to May)',aCourse,'yoy')+
+    anaS('Summer Batches (Mar-Apr-May months)',aCourse,'summer')+'</div>';
 }
 function anaS(title,course,type){
   let su=type==='current'&&course!=='klic';
@@ -664,18 +687,21 @@ function updatePFTitle(){
   let dcuVal=document.getElementById('pfDCU').value;
   let topN=document.getElementById('pfTopN').value;
   let dcuLabel=dcuVal==='all'?'DCU Wise':dcuVal;
-  document.getElementById('pfPageTitle').innerHTML='&#x1F3C6; Top '+topN+' Performers &middot; '+dcuLabel+' <span class="pf-page-sub">(Active ALCs only)</span>';
+  let pLabel=pfPeriod==='summer'?'Summer Season':pfPeriod==='yoy'?'Year till May':'Current Batch';
+  document.getElementById('pfPageTitle').innerHTML='&#x1F3C6; Top '+topN+' Performers &middot; '+dcuLabel+' &middot; <span style="color:#f59e0b">'+pLabel+'</span> <span class="pf-page-sub">(Active ALCs only)</span>';
 }
 function renderPF(){
   let topN=parseInt(document.getElementById('pfTopN').value)||10;
   let dcuFilter=document.getElementById('pfDCU').value;
+  let pfKey=pfPeriod==='summer'?'cy_summer':pfPeriod==='yoy'?'cy_yoy':'confirmed_current';
+  let pfPeriodLabel=pfPeriod==='summer'?'Summer Season':pfPeriod==='yoy'?'Year till May':'Current Batch';
   let dcuList=dcuFilter==='all'?DCUS:[dcuFilter];
   let h='<div class="pf-grid">';
   dcuList.forEach(dcu=>{
     let col=DC[dcu]||'#374151';
-    let dcuTotal=RAW.filter(c=>c.DCU===dcu).reduce((s,c)=>s+getF(c,pfC,'confirmed_current'),0);
-    let cs=RAW.filter(c=>c.DCU===dcu&&alcFilter(c,pfC)).sort((a,b)=>getF(b,pfC,'confirmed_current')-getF(a,pfC,'confirmed_current')).slice(0,topN);
-    let rows=cs.map((c,i)=>{let cf=getF(c,pfC,'confirmed_current'),nc=i===0?'n1':i===1?'n2':i===2?'n3':'nX',nm=c['Center Name'].length>18?c['Center Name'].substring(0,17)+'…':c['Center Name'];return'<div class="pf-row"><div class="pf-num '+nc+'">'+(i+1)+'</div><div class="pf-name-line" title="'+c['Center Name']+' · '+c['ALC Code']+'"><span class="pf-name-txt">'+nm+'</span><span class="pf-code">'+c['ALC Code']+'</span></div><div class="pf-conf">'+fmt(cf)+'</div></div>';}).join('');
+    let dcuTotal=RAW.filter(c=>c.DCU===dcu).reduce((s,c)=>s+getF(c,pfC,pfKey),0);
+    let cs=RAW.filter(c=>c.DCU===dcu&&alcFilter(c,pfC)).sort((a,b)=>getF(b,pfC,pfKey)-getF(a,pfC,pfKey)).slice(0,topN);
+    let rows=cs.map((c,i)=>{let cf=getF(c,pfC,pfKey),nc=i===0?'n1':i===1?'n2':i===2?'n3':'nX',nm=c['Center Name'].length>18?c['Center Name'].substring(0,17)+'…':c['Center Name'];return'<div class="pf-row"><div class="pf-num '+nc+'">'+(i+1)+'</div><div class="pf-name-line" title="'+c['Center Name']+' · '+c['ALC Code']+'"><span class="pf-name-txt">'+nm+'</span><span class="pf-code">'+c['ALC Code']+'</span></div><div class="pf-conf">'+fmt(cf)+'</div></div>';}).join('');
     h+='<div class="pf-card"><div class="pf-hdr" style="background:'+col+'">'+dcu+' <span class="pf-total">Total: '+fmt(dcuTotal)+'</span></div><div class="pf-cols"><span>#</span><span>ALC · CODE</span><span>CONF.</span></div>'+rows+'</div>';
   });
   document.getElementById('pfContent').innerHTML=h+'</div>';
@@ -979,7 +1005,80 @@ function renderRenewal(){
   }).join('');
 
   document.getElementById('renewTbody').innerHTML=rows||'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">No centers found</td></tr>';
+
+  // ── Summary table ──
+  let sumEl=document.getElementById('renewSummary');
+  sumEl.innerHTML='';
+  if(df==='all'){
+    // DCU-wise summary
+    let dcuList=[...new Set(centers.map(c=>c.DCU))].sort();
+    let sumRows=dcuList.map(dcu=>{
+      let dcs=centers.filter(c=>c.DCU===dcu);
+      let drs=dcs.map(c=>checkRenewal(c));
+      let tot=drs.length,met=drs.filter(r=>r.met).length,notMet=tot-met;
+      let pct=tot?Math.round(met/tot*100):0;
+      let col=DC[dcu]||'#374151';
+      return{dcu,tot,met,notMet,pct,col};
+    });
+    let totalTot=sumRows.reduce((s,r)=>s+r.tot,0);
+    let totalMet2=sumRows.reduce((s,r)=>s+r.met,0);
+    let totalNot=sumRows.reduce((s,r)=>s+r.notMet,0);
+    let totalPct=totalTot?Math.round(totalMet2/totalTot*100):0;
+    let h='<div class="ren-sum-wrap"><div class="ren-sum-title">&#x1F4CA; DCU-wise Renewal Summary</div>';
+    h+='<div style="overflow-x:auto"><table class="ren-sum-tbl"><thead><tr>';
+    h+='<th>DCU</th><th>Total</th><th>Completed</th><th>Not Completed</th><th style="min-width:140px">Completion %</th></tr></thead><tbody>';
+    sumRows.forEach(function(r){
+      let barColor=r.pct>=80?'var(--green)':r.pct>=50?'var(--orange)':'var(--red)';
+      h+='<tr>';
+      h+='<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+r.col+';margin-right:6px;vertical-align:middle;"></span>'+r.dcu+'</td>';
+      h+='<td>'+r.tot+'</td>';
+      h+='<td style="color:var(--green);font-weight:700;">'+r.met+'</td>';
+      h+='<td style="color:var(--red);">'+r.notMet+'</td>';
+      h+='<td><div class="ren-sum-bar"><div class="ren-sum-bar-bg"><div class="ren-sum-bar-fill" style="width:'+r.pct+'%;background:'+barColor+';"></div></div><span class="ren-sum-pct" style="color:'+barColor+';">'+r.pct+'%</span></div></td>';
+      h+='</tr>';
+    });
+    h+='<tr class="sum-total"><td>&#x1F4CC; Total</td><td>'+totalTot+'</td><td style="color:var(--green);">'+totalMet2+'</td><td style="color:var(--red);">'+totalNot+'</td>';
+    let tBarColor=totalPct>=80?'var(--green)':totalPct>=50?'var(--orange)':'var(--red)';
+    h+='<td><div class="ren-sum-bar"><div class="ren-sum-bar-bg"><div class="ren-sum-bar-fill" style="width:'+totalPct+'%;background:'+tBarColor+';"></div></div><span class="ren-sum-pct" style="color:'+tBarColor+';">'+totalPct+'%</span></div></td>';
+    h+='</tr></tbody></table></div></div>';
+    sumEl.innerHTML=h;
+  } else if(df!=='all' && sf==='all'){
+    // SBU-wise summary for selected DCU
+    let sbuList=[...new Set(centers.map(c=>c.SBU))].filter(Boolean).sort();
+    let sumRows=sbuList.map(sbu=>{
+      let scs=centers.filter(c=>c.SBU===sbu);
+      let srs=scs.map(c=>checkRenewal(c));
+      let tot=srs.length,met=srs.filter(r=>r.met).length,notMet=tot-met;
+      let pct=tot?Math.round(met/tot*100):0;
+      return{sbu,tot,met,notMet,pct};
+    });
+    let totalTot=sumRows.reduce((s,r)=>s+r.tot,0);
+    let totalMet2=sumRows.reduce((s,r)=>s+r.met,0);
+    let totalNot=sumRows.reduce((s,r)=>s+r.notMet,0);
+    let totalPct=totalTot?Math.round(totalMet2/totalTot*100):0;
+    let dcuColor=DC[df]||'#374151';
+    let h='<div class="ren-sum-wrap"><div class="ren-sum-title" style="border-color:'+dcuColor+';color:'+dcuColor+';">&#x1F4CA; SBU-wise Renewal Summary &mdash; <span style="font-weight:400">'+df+'</span></div>';
+    h+='<div style="overflow-x:auto"><table class="ren-sum-tbl"><thead><tr>';
+    h+='<th>SBU</th><th>Total</th><th>Completed</th><th>Not Completed</th><th style="min-width:140px">Completion %</th></tr></thead><tbody>';
+    sumRows.forEach(function(r){
+      let barColor=r.pct>=80?'var(--green)':r.pct>=50?'var(--orange)':'var(--red)';
+      h+='<tr>';
+      h+='<td>'+r.sbu+'</td>';
+      h+='<td>'+r.tot+'</td>';
+      h+='<td style="color:var(--green);font-weight:700;">'+r.met+'</td>';
+      h+='<td style="color:var(--red);">'+r.notMet+'</td>';
+      h+='<td><div class="ren-sum-bar"><div class="ren-sum-bar-bg"><div class="ren-sum-bar-fill" style="width:'+r.pct+'%;background:'+barColor+';"></div></div><span class="ren-sum-pct" style="color:'+barColor+';">'+r.pct+'%</span></div></td>';
+      h+='</tr>';
+    });
+    h+='<tr class="sum-total"><td>&#x1F4CC; Total</td><td>'+totalTot+'</td><td style="color:var(--green);">'+totalMet2+'</td><td style="color:var(--red);">'+totalNot+'</td>';
+    let tBarColor=totalPct>=80?'var(--green)':totalPct>=50?'var(--orange)':'var(--red)';
+    h+='<td><div class="ren-sum-bar"><div class="ren-sum-bar-bg"><div class="ren-sum-bar-fill" style="width:'+totalPct+'%;background:'+tBarColor+';"></div></div><span class="ren-sum-pct" style="color:'+tBarColor+';">'+totalPct+'%</span></div></td>';
+    h+='</tr></tbody></table></div></div>';
+    sumEl.innerHTML=h;
+  }
+  // For SBU-specific or filter-specific: no summary table (existing behaviour)
 }
+
 
 
 // ── CONGRATULATIONS ──
