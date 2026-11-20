@@ -230,7 +230,7 @@ tr:hover td{background:#f8faff;}
     </div>
     <div class="hdr-right">
       <div class="hdr-badge"><b>November 2026</b>MS-CIT: Feb&#39;27 EE &nbsp;|&nbsp; KLiC: KLiC Nov&#39;26</div>
-      <div class="hdr-updated">Data updated on: 20 Nov 2026, 04:07 PM</div>
+      <div class="hdr-updated">Data updated on: 20 Nov 2026, 05:41 PM</div>
     </div>
   </div>
   <div class="nav-bar"><div class="nav-inner">
@@ -363,16 +363,39 @@ function rnwEval(o){
   if(o.special)return{msg:'Special center - eligible by default',act:false};
   if(!o.r)return{msg:'Not found in Renewal file',act:false};
   if(o.elig)return{msg:'Eligible',act:false};
+  var n=function(x){return rnwUp(x);},pl=function(x,w){return n(x)+' '+w+(n(x)>1?'s':'');};
   var sM=Math.max(0,o.minM-o.mc),sC=Math.max(0,o.minC-o.fp);
   var pM=Math.max(0,o.mt-o.mc),pK=Math.max(0,o.kt-o.kc);
-  var addM=Math.max(0,sM-pM),addC=Math.max(0,sC-pM-pK),add=Math.max(addM,addC);
-  if(add<=1e-9){
-    var need=Math.max(sM,sC);
-    return{act:true,msg:'Pay full installment of '+rnwUp(need)+' more admission'+(rnwUp(need)>1?'s':'')+(sM>0?' (at least '+rnwUp(sM)+' MS-CIT)':' (MS-CIT / KLiC)')+' to become eligible'};
+  var mscitOnly=(o.minC<=o.minM),L=[];
+  if(mscitOnly){
+    /* Criteria needs MS-CIT admissions only (KLiC not counted) */
+    L.push('Needs '+pl(sM,'more full-paid MS-CIT admission')+' (only MS-CIT counts for this criteria).');
+    if(pM>=sM-1e-9)return{act:true,msg:L.concat(['Action: Pay full installment of '+pl(sM,'MS-CIT admission')+' already registered.']).join('\n')};
+    var nw=sM-pM;if(pM>0.5)L.push('Action: Get '+pl(pM,'registered MS-CIT admission')+' fully paid and confirm '+pl(nw,'new MS-CIT admission')+'.');else L.push('Action: Confirm '+pl(nw,'new MS-CIT admission')+' and get them fully paid.');
+    return{act:false,msg:L.join('\n')};
   }
-  var s='Confirm additional '+rnwUp(add)+' admission'+(rnwUp(add)>1?'s':'')+(addM>1e-9?' (MS-CIT)':' (MS-CIT / KLiC)');
-  if(pM+pK>0.5)s+=' and get the '+rnwUp(pM+pK)+' pending-installment admission'+(rnwUp(pM+pK)>1?'s':'')+' fully paid';
-  return{act:false,msg:s+' to become eligible'};
+  /* Combined criteria: at least minM must be MS-CIT, balance can be MS-CIT or KLiC equivalent (180 hrs = 1) */
+  var R=Math.max(0,sC-sM),T=Math.max(sM,sC);
+  if(sM<=1e-9)L.push('Needs '+pl(T,'more full-paid admission')+' (MS-CIT or KLiC equivalent, in any mix).');
+  else L.push('Needs '+pl(T,'more full-paid admission')+': at least '+n(sM)+' must be MS-CIT'+(R>1e-9?', the other '+n(R)+' can be MS-CIT or KLiC equivalent.':'.'));
+  var payM=Math.min(sM,pM),newM=sM-payM,poolM=pM-payM;
+  var payF=Math.min(R,poolM+pK),newF=R-payF;
+  if(newM<=1e-9&&newF<=1e-9){
+    var a;
+    if(sM<=1e-9)a='Action: Pay full installment of '+pl(R,'registered admission')+' (MS-CIT or KLiC).';
+    else{a='Action: Pay full installment of '+pl(sM,'registered MS-CIT admission');
+      if(R>1e-9)a+=' and '+n(R)+' more registered MS-CIT / KLiC admission'+(n(R)>1?'s':'');a+='.';}
+    return{act:true,msg:L.concat([a]).join('\n')};
+  }
+  if(payM+payF>0.5)L.push('Get '+n(payM+payF)+' already registered admission'+(n(payM+payF)>1?'s':'')+' fully paid.');
+  if(newM>1e-9)L.push('Confirm '+pl(newM,'new MS-CIT admission')+' (compulsory).');
+  if(newF>1e-9){
+    L.push('Confirm '+n(newF)+' more as: MS-CIT, or KLiC equivalent (about '+Math.ceil(newF*180)+' KLiC learning hours), or a mix of both.');
+  }
+  if(newM>1e-9&&newF>1e-9){
+    L.push('Example: '+n(newM+newF)+' MS-CIT, or '+n(newM)+' MS-CIT + '+n(newF)+' KLiC equivalent.');
+  }
+  return{act:false,msg:L.join('\n')};
 }
 function rnwRows(){
   return RAW.filter(function(c){return c['Is Active']==='Yes'&&c['Type']==='MS-CIT';}).map(function(c){
@@ -438,14 +461,14 @@ function rnwDetailTbl(){
     h+='<th class="rnw-th" onclick="rnwSortBy(\''+c[0]+'\')" style="text-align:'+(c[2]==='left'?'left':c[2]==='c'?'center':'right')+'">'+c[1]+ar+'</th>';});
   h+='</tr></thead><tbody>';
   list.forEach(function(o,i){
-    h+='<tr><td style="text-align:center">'+(i+1)+'</td><td style="text-align:left">'+rnwEsc(o.code)+'</td><td style="text-align:left">'+rnwEsc(o.name)+'</td><td>'+fmt(o.mt)+'</td><td>'+fmt(o.kt)+'</td><td>'+fmt(o.ta)+'</td><td>'+(o.r?fmt(o.mc):'-')+'</td><td>'+(o.r?fmt(o.kc):'-')+'</td><td>'+(o.r?fmt(o.minC):'-')+'</td><td>'+(o.r?fmt(o.fp):'-')+'</td><td style="text-align:center"><span style="font-weight:700;color:'+(o.elig?'var(--green)':'var(--red)')+'">'+(o.elig?'Yes':'No')+'</span></td><td style="text-align:left;white-space:normal;min-width:260px;font-size:10.5px;color:var(--text2)">'+rnwEsc(o.msg)+'</td></tr>';});
+    h+='<tr><td style="text-align:center">'+(i+1)+'</td><td style="text-align:left">'+rnwEsc(o.code)+'</td><td style="text-align:left">'+rnwEsc(o.name)+'</td><td>'+fmt(o.mt)+'</td><td>'+fmt(o.kt)+'</td><td>'+fmt(o.ta)+'</td><td>'+(o.r?fmt(o.mc):'-')+'</td><td>'+(o.r?fmt(o.kc):'-')+'</td><td>'+(o.r?fmt(o.minC):'-')+'</td><td>'+(o.r?fmt(o.fp):'-')+'</td><td style="text-align:center"><span style="font-weight:700;color:'+(o.elig?'var(--green)':'var(--red)')+'">'+(o.elig?'Yes':'No')+'</span></td><td style="text-align:left;white-space:normal;min-width:300px;font-size:10.5px;color:var(--text2)">'+rnwEsc(o.msg).split('\n').join('<br>')+'</td></tr>';});
   if(!list.length)h+='<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:14px">No ALCs found</td></tr>';
   document.getElementById('rnwTbl').innerHTML=h+'</tbody></table></div>';
 }
 function rnwCsv(){
   var list=rnwFiltered(rnwRows()),q=function(x){return '"'+String(x==null?'':x).replace(/"/g,'""')+'"';};
   var out=[['ALC Code','ALC Name','DCU','SBU','MS-CIT','KLiC','Total Adm','MS-CIT Full Paid','Equiv KLiC','Criteria','Total (Full Paid)','Eligible','Interpretation']];
-  list.forEach(function(o){out.push([o.code,o.name,o.dcu,o.sbu,o.mt,o.kt,o.ta,o.mc,o.kc,o.minC,o.fp,o.elig?'Yes':'No',o.msg]);});
+  list.forEach(function(o){out.push([o.code,o.name,o.dcu,o.sbu,o.mt,o.kt,o.ta,o.mc,o.kc,o.minC,o.fp,o.elig?'Yes':'No',String(o.msg).split('\n').join(' | ')]);});
   var b=new Blob(['\ufeff'+out.map(function(r){return r.map(q).join(',');}).join('\n')],{type:'text/csv'});
   var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Renewal_'+(rnwView.key===null?'All':String(rnwView.key).replace(/\s+/g,'_'))+'_'+rnwView.st+'.csv';a.click();
 }
